@@ -23,7 +23,6 @@ By acting as a single source of truth, this platform eliminates data silos and p
 * **[Team Member: Neha G S]** - *[Role,]* | [Department/Details]
 * **[Team Member: TEJAS N AKKASALI]** - *[Role,]* | [Department/Details]
 * **[Team Member: Samiya Sultana T]** - *[Role,]* | [Department/Details]
-* **[Team Member: BEERESHKUMAR B C ]** - *[Role,]* | [Department/Details]
 
 
 

@@ -39,4 +39,3 @@ Before you begin, ensure you have the following installed on your local machine:
 ### 1. Clone the Repository
 ```bash
 git clone https://github.com/yashwanthyashu514/InterConeect-P-0002.git
-cd campusconnect

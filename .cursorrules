@@ -1,0 +1,12 @@
+# Cursor Rules for CampusConnect
+
+## Tech Stack
+- Frontend: Next.js (App Router), React, Tailwind CSS, TypeScript.
+- Backend: Supabase (PostgreSQL, Edge Functions, Auth).
+
+## Code Style & AI Guidelines
+- Always use TypeScript interfaces for database payloads.
+- Use the @supabase/supabase-js v2 SDK.
+- When generating SQL, ALWAYS write it as a Supabase Migration.
+- Assume Row Level Security (RLS) is required for all tables.
+- Do not apologize; output code blocks directly.

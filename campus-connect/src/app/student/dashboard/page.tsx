@@ -1,6 +1,6 @@
 "use client";
 
-import { supabase } from "@/src/lib/supabaseClient";
+import { isSupabaseConfigured, supabase } from "@/src/lib/supabaseClient";
 import {
   getStudentAttendance,
   type AttendanceLog,
@@ -12,10 +12,12 @@ import {
   CheckCircle2,
   ClipboardList,
   Loader2,
+  MessageSquareText,
   ScanLine,
   XCircle,
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 function sessionMeta(log: AttendanceLog) {
@@ -61,6 +63,7 @@ function formatMarkedAt(iso: string) {
 }
 
 export default function StudentDashboardPage() {
+  const router = useRouter();
   const [courses, setCourses] = useState<Course[]>([]);
   const [logs, setLogs] = useState<AttendanceLog[]>([]);
   const [loading, setLoading] = useState(true);
@@ -70,6 +73,13 @@ export default function StudentDashboardPage() {
   const load = useCallback(async () => {
     setError(null);
     setAuthRedirect(false);
+    if (!isSupabaseConfigured) {
+      setAuthRedirect(true);
+      setCourses([]);
+      setLogs([]);
+      setLoading(false);
+      return;
+    }
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -115,6 +125,14 @@ export default function StudentDashboardPage() {
     return { presentCount: present, totalCount: total, percent: pct };
   }, [logs]);
 
+  async function handleSignOut() {
+    document.cookie = "cc_auth=; Path=/; Max-Age=0; SameSite=Lax";
+    if (isSupabaseConfigured) {
+      await supabase.auth.signOut();
+    }
+    router.replace("/login");
+  }
+
   return (
     <div className="relative min-h-full flex-1 bg-zinc-50 pb-28 font-sans dark:bg-zinc-950">
       <div
@@ -133,9 +151,18 @@ export default function StudentDashboardPage() {
               Student dashboard
             </h1>
           </div>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            Your attendance
-          </p>
+          <div className="flex items-center gap-3">
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">
+              Your attendance
+            </p>
+            <button
+              type="button"
+              onClick={() => void handleSignOut()}
+              className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-900 transition hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
+            >
+              Sign out
+            </button>
+          </div>
         </div>
       </header>
 
@@ -315,13 +342,22 @@ export default function StudentDashboardPage() {
       </main>
 
       {!loading && !authRedirect && !error ? (
-        <Link
-          href="/student/scan"
-          className="fixed bottom-6 left-1/2 z-50 flex min-h-[3.75rem] w-[min(calc(100vw-2rem),28rem)] -translate-x-1/2 items-center justify-center gap-3 rounded-full bg-emerald-600 px-6 py-4 text-base font-semibold text-white shadow-lg shadow-emerald-900/25 transition hover:bg-emerald-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 active:scale-[0.98] dark:bg-emerald-500 dark:hover:bg-emerald-400 dark:focus-visible:outline-emerald-400 sm:bottom-8 sm:left-auto sm:right-8 sm:min-h-[4rem] sm:w-auto sm:translate-x-0 sm:px-8 sm:text-lg"
-        >
-          <ScanLine className="size-6 shrink-0 sm:size-7" aria-hidden />
-          Scan QR for Attendance
-        </Link>
+        <div className="fixed bottom-6 left-1/2 z-50 flex w-[min(calc(100vw-2rem),28rem)] -translate-x-1/2 flex-col gap-3 sm:bottom-8 sm:left-auto sm:right-8 sm:w-auto sm:translate-x-0">
+          <Link
+            href="/student/appointments"
+            className="flex min-h-[3.25rem] items-center justify-center gap-2 rounded-full border border-zinc-200 bg-white px-6 py-3 text-sm font-semibold text-zinc-900 shadow-lg shadow-zinc-900/10 transition hover:bg-zinc-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-400 active:scale-[0.99] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
+          >
+            <MessageSquareText className="size-5 shrink-0" aria-hidden />
+            Appointments
+          </Link>
+          <Link
+            href="/student/scan"
+            className="flex min-h-[3.75rem] items-center justify-center gap-3 rounded-full bg-emerald-600 px-6 py-4 text-base font-semibold text-white shadow-lg shadow-emerald-900/25 transition hover:bg-emerald-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 active:scale-[0.98] dark:bg-emerald-500 dark:hover:bg-emerald-400 dark:focus-visible:outline-emerald-400 sm:min-h-[4rem] sm:px-8 sm:text-lg"
+          >
+            <ScanLine className="size-6 shrink-0 sm:size-7" aria-hidden />
+            Scan QR for Attendance
+          </Link>
+        </div>
       ) : null}
     </div>
   );

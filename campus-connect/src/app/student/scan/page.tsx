@@ -1,6 +1,6 @@
 "use client";
 
-import { supabase } from "@/src/lib/supabaseClient";
+import { isSupabaseConfigured, supabase } from "@/src/lib/supabaseClient";
 import { markAttendanceQR } from "@/src/services/api";
 import { Html5QrcodeScanner } from "html5-qrcode";
 import { ArrowLeft, CheckCircle2, Loader2 } from "lucide-react";
@@ -41,18 +41,29 @@ function parseScanPayload(raw: string): {
 export default function StudentScanPage() {
   const [phase, setPhase] = useState<Phase>("scanning");
   const [studentId, setStudentId] = useState<string | null>(null);
-  const [authChecked, setAuthChecked] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
+  const [authChecked, setAuthChecked] = useState(!isSupabaseConfigured);
+  const [toast, setToast] = useState<string | null>(
+    isSupabaseConfigured
+      ? null
+      : "Supabase is not configured. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in .env.local to enable scanning.",
+  );
   const [successDetail, setSuccessDetail] = useState<string | null>(null);
 
   const scannerRef = useRef<{ clear: () => Promise<void> } | null>(null);
   const cancelledRef = useRef(false);
 
   useEffect(() => {
-    void supabase.auth.getUser().then(({ data: { user } }) => {
-      setStudentId(user?.id ?? null);
-      setAuthChecked(true);
-    });
+    if (!isSupabaseConfigured) return;
+    void supabase.auth
+      .getUser()
+      .then(({ data: { user } }) => {
+        setStudentId(user?.id ?? null);
+        setAuthChecked(true);
+      })
+      .catch(() => {
+        setStudentId(null);
+        setAuthChecked(true);
+      });
   }, []);
 
   const runMarkAttendance = useCallback(

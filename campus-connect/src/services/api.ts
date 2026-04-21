@@ -54,6 +54,65 @@ export interface StudentAttendanceResult {
   attendanceLogs: AttendanceLog[];
 }
 
+export type AppointmentStatus =
+  | "scheduled"
+  | "requested"
+  | "approved"
+  | "rejected"
+  | "cancelled"
+  | "completed";
+
+/** Faculty row joined on `appointments.faculty_id` (for student views). */
+export type AppointmentFacultySummary = Pick<
+  UserProfile,
+  "id" | "name" | "email" | "department"
+>;
+
+export interface Appointment {
+  id: string;
+  student_id: string;
+  faculty_id: string;
+  scheduled_time: string;
+  status: AppointmentStatus | string;
+  created_at: string;
+  /** Present when loaded with a `users` join on `faculty_id`. */
+  faculty?: AppointmentFacultySummary | null;
+}
+
+const appointmentFacultySelect = `
+  id,
+  student_id,
+  faculty_id,
+  scheduled_time,
+  status,
+  created_at,
+  faculty:users!faculty_id (
+    id,
+    name,
+    email,
+    department
+  )
+`;
+
+function parseAppointmentFacultyRow(row: unknown): Appointment {
+  const r = row as Appointment & {
+    faculty?: AppointmentFacultySummary | AppointmentFacultySummary[] | null;
+  };
+  let faculty: AppointmentFacultySummary | null | undefined = r.faculty;
+  if (Array.isArray(faculty)) {
+    faculty = faculty[0] ?? null;
+  }
+  return {
+    id: r.id,
+    student_id: r.student_id,
+    faculty_id: r.faculty_id,
+    scheduled_time: r.scheduled_time,
+    status: r.status,
+    created_at: r.created_at,
+    faculty: faculty ?? null,
+  };
+}
+
 function base64UrlEncode(bytes: Uint8Array) {
   // btoa expects binary string
   let binary = "";
@@ -130,6 +189,12 @@ export interface CreateAttendanceSessionResult {
   date: string;
 }
 
+export interface RotateAttendanceSessionResult {
+  sessionId: string;
+  qrTokenSecret: string;
+  expiresAt: string;
+}
+
 export async function createAttendanceSession(
   courseId: string,
 ): Promise<CreateAttendanceSessionResult> {
@@ -159,6 +224,31 @@ export async function createAttendanceSession(
   };
 }
 
+export async function rotateAttendanceSessionToken(
+  sessionId: string,
+): Promise<RotateAttendanceSessionResult> {
+  const qrTokenSecret = generateQrTokenSecret();
+  const expiresAt = new Date(Date.now() + 15 * 1000).toISOString();
+
+  const { data, error } = await supabase
+    .from("attendance_sessions")
+    .update({
+      qr_token_secret: qrTokenSecret,
+      expires_at: expiresAt,
+    })
+    .eq("id", sessionId)
+    .select("id, expires_at")
+    .single();
+
+  if (error) throw new Error(error.message);
+
+  return {
+    sessionId: data.id as string,
+    qrTokenSecret,
+    expiresAt: data.expires_at as string,
+  };
+}
+
 export interface MarkAttendanceQRResult {
   success: boolean;
   attendance_log_id?: string;
@@ -180,5 +270,92 @@ export async function markAttendanceQR(
 
   if (error) throw new Error(error.message);
   return data as MarkAttendanceQRResult;
+}
+
+export interface EnsureProfileResult {
+  success: boolean;
+  id?: string;
+  role?: string;
+  error?: string;
+}
+
+export async function ensureProfile(): Promise<EnsureProfileResult> {
+  const { data, error } = await supabase.functions.invoke("ensure-profile", {
+    body: {},
+  });
+  if (error) throw new Error(error.message);
+  return data as EnsureProfileResult;
+}
+
+export async function listFaculty(): Promise<UserProfile[]> {
+  const { data, error } = await supabase
+    .from("users")
+    .select("id, name, email, role, department, created_at")
+    .eq("role", "faculty")
+    .order("name", { ascending: true });
+
+  if (error) throw new Error(error.message);
+  return (data ?? []) as unknown as UserProfile[];
+}
+
+export async function createAppointment(input: {
+  studentId: string;
+  facultyId: string;
+  scheduledTimeIso: string;
+}): Promise<Appointment> {
+  const { data, error } = await supabase
+    .from("appointments")
+    .insert({
+      student_id: input.studentId,
+      faculty_id: input.facultyId,
+      scheduled_time: input.scheduledTimeIso,
+      status: "requested",
+    })
+    .select(appointmentFacultySelect)
+    .single();
+
+  if (error) throw new Error(error.message);
+  return parseAppointmentFacultyRow(data);
+}
+
+export async function getStudentAppointments(
+  studentId: string,
+): Promise<Appointment[]> {
+  const { data, error } = await supabase
+    .from("appointments")
+    .select(appointmentFacultySelect)
+    .eq("student_id", studentId)
+    .order("scheduled_time", { ascending: false });
+
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((row) => parseAppointmentFacultyRow(row));
+}
+
+export async function getFacultyAppointments(
+  facultyId: string,
+): Promise<Appointment[]> {
+  const { data, error } = await supabase
+    .from("appointments")
+    .select("id, student_id, faculty_id, scheduled_time, status, created_at")
+    .eq("faculty_id", facultyId)
+    .order("scheduled_time", { ascending: false });
+
+  if (error) throw new Error(error.message);
+  return (data ?? []) as unknown as Appointment[];
+}
+
+export async function updateAppointmentStatus(input: {
+  appointmentId: string;
+  status: AppointmentStatus;
+}): Promise<Appointment> {
+  const { data, error } = await supabase
+    .from("appointments")
+    .update({ status: input.status })
+    .eq("id", input.appointmentId)
+    .select(appointmentFacultySelect)
+    .single();
+
+  if (error) throw new Error(error.message);
+  return parseAppointmentFacultyRow(data);
 }
 

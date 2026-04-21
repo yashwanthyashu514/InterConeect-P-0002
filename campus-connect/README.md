@@ -1,24 +1,59 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+## Campus Connect
+
+Campus Connect is a Next.js + Supabase app for:
+
+- Student attendance via **QR scan**
+- Faculty attendance sessions via **QR generation**
+- Student ↔ faculty **appointment requests**
 
 ## Getting Started
 
-First, run the development server:
+### 1) Install dependencies
+
+From `campus-connect/`:
+
+```bash
+npm install
+```
+
+### 2) Configure environment variables
+
+Create a `.env.local` file in `campus-connect/`:
+
+```bash
+# Supabase (required)
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+
+# Optional (demo helpers)
+NEXT_PUBLIC_MOCK_COURSE_ID=...
+NEXT_PUBLIC_SCAN_FALLBACK_SESSION_ID=...
+```
+
+### 3) Run the dev server
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Supabase schema / functions
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+This repo includes:
+
+- Database schema + RLS policies: `supabase/migrations/*`
+- Edge function used for QR attendance marking: `supabase/functions/mark-attendance`
+
+### App routes
+
+- `/login`: sign in
+- `/register`: sign up (creates a profile row via DB trigger)
+- `/student/dashboard`: view attendance history
+- `/student/scan`: scan attendance QR
+- `/student/appointments`: request appointments
+- `/faculty/dashboard`: create attendance session QR (demo course id)
+- `/faculty/appointments`: review appointment requests
 
 ## Learn More
 
